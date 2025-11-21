@@ -6,6 +6,7 @@ environment:
   sdk: ">=3.0.0 <4.0.0"
 
 dependencies:
+  csv: ^5.0.1
   flutter:
     sdk: flutter
   flutter_localizations:
@@ -30,3 +31,4 @@ flutter:
     - assets/fonts/GolfDiarySans.ttf
     - assets/fonts/NotoSansSC-Regular.otf
     - assets/images/golf_background.png
+    - assets/courses_new.csv

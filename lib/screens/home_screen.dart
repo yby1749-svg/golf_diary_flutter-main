@@ -7,6 +7,7 @@ import 'recent_rounds_screen.dart';
 import 'language_settings_screen.dart';
 import 'score_entry_screen.dart';
 import 'manual_course_input_screen.dart';
+import '../services/golf_course_db.dart';
 
 
 
@@ -143,10 +144,21 @@ class _HomeScreenState extends State<HomeScreen>
                     child: _MainFilledButton(
                       text: L10n.tr('home.record'),
                       onPressed: () async {
-                        // TODO: 나중엔 여기서 실제 GolfCourseDB / Repository에서 코스 목록을 가져오면 된다.
-                        // final courses = GolfCourseDB.instance.courses;
-                        // 지금은 기본 코스 리스트로 테스트
-                        final courses = kDefaultCourses;
+                        // ① 코스 DB 로드
+                        try {
+                          await GolfCourseDB.load(); // static 메서드
+                        } catch (e) {
+                          debugPrint('GolfCourseDB load error: $e');
+                        }
+
+                        // ② DB에서 코스 리스트 가져오기
+                        List<GolfCourse> courses = GolfCourseDB.allCourses; // static 필드
+
+
+                        // 만약 아직 DB가 비었으면, 기존 임시 코스를 사용 (앱이 완전 비어 보이지 않게)
+                        if (courses.isEmpty) {
+                          courses = kDefaultCourses;
+                        }
 
                         final result = await Navigator.push(
                           context,
@@ -157,7 +169,7 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         );
 
-                        // 1) 코스를 선택한 경우
+                        // ③ 코스를 선택한 경우 → 기록 화면
                         if (result is GolfCourse) {
                           await Navigator.push(
                             context,
@@ -170,7 +182,7 @@ class _HomeScreenState extends State<HomeScreen>
                           return;
                         }
 
-                        // 2) "직접 입력" 버튼을 누른 경우
+                        // ④ "직접 입력" 선택한 경우
                         if (result == 'manual') {
                           await Navigator.push(
                             context,
