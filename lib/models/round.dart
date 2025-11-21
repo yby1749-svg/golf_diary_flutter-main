@@ -1,108 +1,106 @@
 // lib/models/round.dart
-
-import 'dart:convert';
+//
+// 최근 라운드 1건을 나타내는 모델
+// - club / course / scoreTotal / date / pars / strokes / photoPaths
+// - prettyDate, holes 등 편의 getter 포함
 
 import 'hole_result.dart';
 
 class Round {
-  final String id;
-  final String clubName;
-  final String courseName;
-  final DateTime date;
-  final List<HoleResult> holes;
-
-  /// 사진 파일 경로 리스트 (0개일 수도 있음)
-  final List<String> photoPaths;
+  final String club;          // 골프장 이름
+  final String course;        // 코스 이름
+  final int scoreTotal;       // 총 타수
+  final DateTime date;        // 라운드 날짜
+  final List<int> pars;       // 각 홀 파
+  final List<int> strokes;    // 각 홀 실제 타수
+  final List<String> photoPaths; // 사진 파일 경로 리스트
 
   Round({
-    required this.id,
-    required this.clubName,
-    required this.courseName,
+    required this.club,
+    required this.course,
+    required this.scoreTotal,
     required this.date,
-    required this.holes,
-    List<String>? photoPaths,
-  }) : photoPaths = photoPaths ?? const [];
+    required this.pars,
+    required this.strokes,
+    this.photoPaths = const [],
+  });
 
-  int get totalPar =>
-      holes.fold<int>(0, (sum, h) => sum + (h.par ?? 4));
+  // 예전 코드 호환용 getter
+  String get clubName => club;
+  String get courseName => course;
 
-  int get totalScore =>
-      holes.fold<int>(0, (sum, h) => sum + (h.strokes ?? h.par ?? 4));
-
-  int get diff => totalScore - totalPar;
-
-  String get diffLabel {
-    if (diff > 0) return '+$diff';
-    if (diff < 0) return diff.toString();
-    return 'E';
+  // "2025-11-20" 형식
+  String get prettyDate {
+    final y = date.year;
+    final m = date.month.toString().padLeft(2, '0');
+    final d = date.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
-  Map<String, dynamic> toJson() {
+  // HoleResult 리스트 (전/후반 화면, PDF에서 사용)
+  List<HoleResult> get holes {
+    final int count = pars.length;
+    return List.generate(count, (i) {
+      final par = pars[i];
+      final stroke =
+          i < strokes.length && strokes[i] > 0 ? strokes[i] : par;
+      return HoleResult(
+        holeIndex: i + 1,
+        par: par,
+        strokes: stroke,
+      );
+    });
+  }
+
+  // ---- 직렬화 / 역직렬화 ----
+
+  Map<String, dynamic> toMap() {
     return {
-      'id': id,
-      'clubName': clubName,
-      'courseName': courseName,
+      'club': club,
+      'course': course,
+      'scoreTotal': scoreTotal,
       'date': date.toIso8601String(),
-      'holes': holes.map((h) => h.toJson()).toList(),
-      'photos': photoPaths,
+      'pars': pars,
+      'strokes': strokes,
+      'photoPaths': photoPaths,
     };
   }
 
-  factory Round.fromJson(Map<String, dynamic> json) {
-    final holesJson = (json['holes'] as List<dynamic>? ?? []);
-    final photosJson = (json['photos'] as List<dynamic>? ?? []);
+  factory Round.fromMap(Map<String, dynamic> map) {
+    final dynamic dateRaw = map['date'];
+    DateTime date;
+    if (dateRaw is String) {
+      date = DateTime.tryParse(dateRaw) ?? DateTime.now();
+    } else if (dateRaw is int) {
+      date = DateTime.fromMillisecondsSinceEpoch(dateRaw);
+    } else {
+      date = DateTime.now();
+    }
+
+    List<int> _intList(dynamic v) {
+      if (v is List) {
+        return v.map((e) => (e as num).toInt()).toList();
+      }
+      return <int>[];
+    }
+
+    List<String> _stringList(dynamic v) {
+      if (v is List) {
+        return v.map((e) => e.toString()).toList();
+      }
+      return <String>[];
+    }
 
     return Round(
-      id: (json['id'] ?? '') as String,
-      clubName: (json['clubName'] ?? '') as String,
-      courseName: (json['courseName'] ?? '') as String,
-      date: DateTime.tryParse(json['date'] ?? '') ?? DateTime.now(),
-      holes: holesJson
-          .map((e) => HoleResult.fromJson(e as Map<String, dynamic>))
-          .toList(),
-      photoPaths: photosJson.map((e) => e.toString()).toList(),
+      club: (map['club'] ?? map['clubName'] ?? '') as String,
+      course: (map['course'] ?? map['courseName'] ?? '') as String,
+      scoreTotal: (map['scoreTotal'] ?? 0 as Object) is int
+          ? map['scoreTotal'] as int
+          : int.tryParse('${map['scoreTotal']}') ?? 0,
+      date: date,
+      pars: _intList(map['pars']),
+      strokes: _intList(map['strokes']),
+      photoPaths: _stringList(map['photoPaths']),
     );
-  }
-
-  Round copyWith({
-    String? id,
-    String? clubName,
-    String? courseName,
-    DateTime? date,
-    List<HoleResult>? holes,
-    List<String>? photoPaths,
-  }) {
-    return Round(
-      id: id ?? this.id,
-      clubName: clubName ?? this.clubName,
-      courseName: courseName ?? this.courseName,
-      date: date ?? this.date,
-      holes: holes ?? this.holes,
-      photoPaths: photoPaths ?? this.photoPaths,
-    );
-  }
-
-  static String encodeList(List<Round> rounds) => json.encode(
-        rounds.map((r) => r.toJson()).toList(),
-      );
-
-  static List<Round> decodeList(String src) {
-    final list = json.decode(src) as List<dynamic>;
-    return list
-        .map((e) => Round.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
-}
-
-/// ✅ 간단한 전역 라운드 저장소
-class GlobalRounds {
-  static final List<Round> rounds = [];
-
-  static void add(Round round) {
-    rounds.insert(0, round); // 최근 라운드가 위로 오게
-  }
-
-  static void clear() {
-    rounds.clear();
   }
 }

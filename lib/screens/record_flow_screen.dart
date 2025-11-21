@@ -92,8 +92,8 @@ class _RecordFlowScreenState extends State<RecordFlowScreen> {
 
                       if (picked != null) {
                         setState(() {
-                          selectedClubName = picked.club;
-                          selectedCourseName = picked.course;
+                          selectedClubName = picked.clubName;
+                          selectedCourseName = picked.courseName;
                         });
                       }
                     },

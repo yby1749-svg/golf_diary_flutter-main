@@ -1,398 +1,506 @@
 // lib/screens/course_select_screen.dart
-//
-// 골프장 검색 + 직접 입력 화면
-//
 
 import 'package:flutter/material.dart';
-
 import '../models/golf_course.dart';
-import '../models/golf_course_repository.dart';
-import '../models/hole_result.dart';
-import 'score_entry_screen.dart';
 
 class CourseSelectScreen extends StatefulWidget {
-  const CourseSelectScreen({Key? key}) : super(key: key);
+  /// 전체 코스 리스트
+  final List<GolfCourse> allCourses;
+
+  const CourseSelectScreen({
+    Key? key,
+    this.allCourses = const [],
+  }) : super(key: key);
 
   @override
   State<CourseSelectScreen> createState() => _CourseSelectScreenState();
 }
 
 class _CourseSelectScreenState extends State<CourseSelectScreen> {
-  final TextEditingController _searchCtrl = TextEditingController();
-  List<GolfCourse> _results = [];
+  String _query = '';
+  String? _selectedCountry; // null = 전체
+  bool _only18Holes = true;
+
+  late List<GolfCourse> _recommendedCourses;
+  late List<GolfCourse> _filteredCourses;
 
   @override
   void initState() {
     super.initState();
+    _recommendedCourses = _buildRecommendedCourses(widget.allCourses);
+    _filteredCourses = _applyFilters();
+  }
 
-    CourseRepository.instance.initialize().then((_) {
-      if (!mounted) return;
-      setState(() {
-        _results = CourseRepository.instance.allCourses;
+  List<GolfCourse> _buildRecommendedCourses(List<GolfCourse> all) {
+    if (all.isEmpty) return [];
+    // 간단하게: 이름순 정렬 후 상위 8개 추천
+    final sorted = [...all]..sort((a, b) => a.clubName.compareTo(b.clubName));
+    return sorted.take(8).toList();
+  }
+
+  List<GolfCourse> _applyFilters() {
+    Iterable<GolfCourse> list = widget.allCourses;
+
+    // 검색어 필터 (클럽명 + 코스명)
+    if (_query.trim().isNotEmpty) {
+      final q = _query.trim().toLowerCase();
+      list = list.where((c) =>
+          c.clubName.toLowerCase().contains(q) ||
+          c.courseName.toLowerCase().contains(q));
+    }
+
+    // 국가 필터
+    if (_selectedCountry != null && _selectedCountry!.isNotEmpty) {
+      list = list.where((c) => c.country == _selectedCountry);
+    }
+
+    // 18홀 필터
+    if (_only18Holes) {
+      list = list.where((c) => c.isEighteenHoles);
+    }
+
+    // 정렬: 국가 -> 클럽명 -> 코스명
+    final result = list.toList()
+      ..sort((a, b) {
+        final countryCmp = a.country.compareTo(b.country);
+        if (countryCmp != 0) return countryCmp;
+        final clubCmp = a.clubName.compareTo(b.clubName);
+        if (clubCmp != 0) return clubCmp;
+        return a.courseName.compareTo(b.courseName);
       });
-    });
 
-    _searchCtrl.addListener(() {
-      final q = _searchCtrl.text;
-      setState(() {
-        _results = CourseRepository.instance.search(q);
-      });
-    });
+    return result;
   }
 
-  @override
-  void dispose() {
-    _searchCtrl.dispose();
-    super.dispose();
+  List<String> get _countryOptions {
+    final set = <String>{};
+    for (final c in widget.allCourses) {
+      if (c.country.isNotEmpty) set.add(c.country);
+    }
+    final list = set.toList()..sort();
+    return list;
   }
 
-  void _selectCourse(GolfCourse course) {
-    final holes = List.generate(
-      18,
-      (i) => HoleResult(
-        holeIndex: i + 1,
-        par: course.pars[i],
-        strokes: course.pars[i],
-      ),
-    );
-
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => ScoreEntryScreen(
-          clubName: course.clubName,
-          courseName: course.courseName,
-          holes: holes,
-        ),
-      ),
-    );
+  void _onCourseSelected(GolfCourse course) {
+    Navigator.of(context).pop(course);
   }
 
-  Future<void> _openManualInput() async {
-    final res = await Navigator.push<Map<String, dynamic>?>(
-      context,
-      MaterialPageRoute(
-        builder: (_) => _ManualCourseInputScreen(),
-      ),
-    );
-
-    if (res == null) return;
-
-    final course = GolfCourse(
-      clubName: res['club'] as String,
-      courseName: res['course'] as String,
-      pars: (res['pars'] as List<dynamic>).cast<int>(),
-    );
-
-    await CourseRepository.instance.addCourse(course);
-    _selectCourse(course);
+  void _onManualInput() {
+    // 직접 입력 요청을 상위로 알림
+    Navigator.of(context).pop('manual'); // ← 문자열로 구분
   }
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = const Color(0xFFEFF8E6);
-    final accent = const Color(0xFF2E7D32);
+    final theme = Theme.of(context);
+    final hasData = widget.allCourses.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: bgColor,
       appBar: AppBar(
-        backgroundColor: bgColor,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
-        title: const Text(
-          '골프장 검색',
-          style: TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        centerTitle: true,
+        title: const Text('코스 선택'),
       ),
-      body: Column(
-        children: [
-          // 검색창
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
-            child: Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: TextField(
-                controller: _searchCtrl,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText: '골프장 / 코스 검색',
-                  border: InputBorder.none,
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // 추천 코스 섹션
+              if (hasData && _recommendedCourses.isNotEmpty) ...[
+                _SectionHeader(
+                  title: '추천 코스',
+                  subtitle: '자주 사용하거나 인기 있는 코스를 빠르게 선택해요',
                 ),
-              ),
-            ),
-          ),
-
-          // 결과가 없을 때
-          if (_results.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 40),
-              child: Column(
-                children: const [
-                  Icon(Icons.golf_course_outlined,
-                      size: 40, color: Colors.grey),
-                  SizedBox(height: 8),
-                  Text(
-                    '검색 결과가 없습니다.\n직접 입력하기로 코스를 추가해 보세요.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey),
+                const SizedBox(height: 12),
+                SizedBox(
+                  height: 140,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: _recommendedCourses.length,
+                    separatorBuilder: (_, __) => const SizedBox(width: 12),
+                    itemBuilder: (context, index) {
+                      final course = _recommendedCourses[index];
+                      return _RecommendedCourseCard(
+                        course: course,
+                        onTap: () => _onCourseSelected(course),
+                      );
+                    },
                   ),
-                ],
-              ),
-            ),
+                ),
+                const SizedBox(height: 24),
+              ],
 
-          // 검색 결과 리스트
-          if (_results.isNotEmpty)
-            Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
-                itemCount: _results.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (context, i) {
-                  final c = _results[i];
-                  final initials = _buildInitials(c.clubName);
-
-                  return InkWell(
-                    borderRadius: BorderRadius.circular(18),
-                    onTap: () => _selectCourse(c),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(18),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 4,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                          // 동그란 아이콘
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: accent.withOpacity(0.15),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Text(
-                                initials,
-                                style: TextStyle(
-                                  color: accent,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          // 텍스트들
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  c.clubName,
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Row(
-                                  children: [
-                                    Text(
-                                      c.courseName,
-                                      style: const TextStyle(
-                                        fontSize: 13,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    const Text(
-                                      ' • ',
-                                      style: TextStyle(
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    Text(
-                                      'Par ${c.totalPar}',
-                                      style: TextStyle(
-                                        fontSize: 13,
-                                        color: accent,
-                                        fontWeight: FontWeight.w500,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(
-                            Icons.chevron_right,
-                            color: Colors.grey,
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
+              // 검색창
+              TextField(
+                decoration: InputDecoration(
+                  hintText: '골프장 또는 코스명을 입력하세요',
+                  prefixIcon: const Icon(Icons.search),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear),
+                          onPressed: () {
+                            setState(() {
+                              _query = '';
+                              _filteredCourses = _applyFilters();
+                            });
+                          },
+                        )
+                      : null,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 0,
+                  ),
+                ),
+                onChanged: (value) {
+                  setState(() {
+                    _query = value;
+                    _filteredCourses = _applyFilters();
+                  });
                 },
               ),
-            ),
+              const SizedBox(height: 12),
 
-          // 하단 "직접 입력하기" 버튼
-          SafeArea(
-            top: false,
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
-              child: SizedBox(
+              // 필터 바
+              Row(
+                children: [
+                  // 국가 드롭다운
+                  Expanded(
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 4),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: theme.dividerColor.withOpacity(0.6)),
+                      ),
+                      child: DropdownButtonHideUnderline(
+                        child: DropdownButton<String?>(
+                          isDense: true,
+                          value: _selectedCountry,
+                          hint: const Text('국가 전체'),
+                          items: [
+                            const DropdownMenuItem<String?>(
+                              value: null,
+                              child: Text('국가 전체'),
+                            ),
+                            ..._countryOptions.map(
+                              (c) => DropdownMenuItem<String?>(
+                                value: c,
+                                child: Text(c),
+                              ),
+                            ),
+                          ],
+                          onChanged: (value) {
+                            setState(() {
+                              _selectedCountry = value;
+                              _filteredCourses = _applyFilters();
+                            });
+                          },
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  // 18홀만 토글
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Switch(
+                        value: _only18Holes,
+                        onChanged: (value) {
+                          setState(() {
+                            _only18Holes = value;
+                            _filteredCourses = _applyFilters();
+                          });
+                        },
+                      ),
+                      const Text('18홀만'),
+                    ],
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // 결과 리스트
+              Expanded(
+                child: _filteredCourses.isEmpty
+                    ? Center(
+                        child: Text(
+                          hasData
+                              ? '조건에 맞는 코스가 없습니다.'
+                              : '등록된 코스 데이터가 없습니다.',
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                      )
+                    : ListView.separated(
+                        itemCount: _filteredCourses.length,
+                        separatorBuilder: (_, __) =>
+                            const SizedBox(height: 12),
+                        itemBuilder: (context, index) {
+                          final course = _filteredCourses[index];
+                          return _CourseResultCard(
+                            course: course,
+                            onTap: () => _onCourseSelected(course),
+                          );
+                        },
+                      ),
+              ),
+
+              const SizedBox(height: 12),
+
+              // 하단 "직접 입력" 버튼
+              SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _openManualInput,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: accent,
-                    elevation: 2,
-                    padding:
-                        const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(26),
+                      borderRadius: BorderRadius.circular(24),
                     ),
                   ),
-                  child: const Text(
-                    '직접 입력하기',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  onPressed: _onManualInput,
+                  child: const Text('직접 입력'),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 섹션 제목 위젯
+class _SectionHeader extends StatelessWidget {
+  final String title;
+  final String? subtitle;
+
+  const _SectionHeader({
+    Key? key,
+    required this.title,
+    this.subtitle,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: theme.textTheme.titleMedium?.copyWith(
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        if (subtitle != null) ...[
+          const SizedBox(height: 4),
+          Text(
+            subtitle!,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.textTheme.bodySmall?.color?.withOpacity(0.7),
             ),
           ),
         ],
-      ),
+      ],
     );
   }
-
-  String _buildInitials(String clubName) {
-    final trimmed = clubName.trim();
-    if (trimmed.isEmpty) return '?';
-
-    // 한글/영문 섞여도 앞 1~2글자 정도만 보여주기
-    if (trimmed.length <= 2) return trimmed;
-    return trimmed.substring(0, 2);
-  }
 }
 
-// ------------------------------
-// 직접 입력 화면
-// ------------------------------
+/// 추천 코스 카드 (가로 스크롤용)
+class _RecommendedCourseCard extends StatelessWidget {
+  final GolfCourse course;
+  final VoidCallback onTap;
 
-class _ManualCourseInputScreen extends StatefulWidget {
-  _ManualCourseInputScreen({Key? key}) : super(key: key);
-
-  @override
-  State<_ManualCourseInputScreen> createState() =>
-      _ManualCourseInputScreenState();
-}
-
-class _ManualCourseInputScreenState
-    extends State<_ManualCourseInputScreen> {
-  final TextEditingController _club = TextEditingController();
-  final TextEditingController _course = TextEditingController();
-
-  @override
-  void dispose() {
-    _club.dispose();
-    _course.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    final club = _club.text.trim();
-    final course = _course.text.trim();
-
-    if (club.isEmpty || course.isEmpty) {
-      return;
-    }
-
-    // 18홀 모두 Par4 로 시작 (ScoreEntryScreen 에서 자유롭게 수정)
-    final pars = List<int>.filled(18, 4);
-
-    Navigator.pop<Map<String, dynamic>>(context, {
-      'club': club,
-      'course': course,
-      'pars': pars,
-    });
-  }
+  const _RecommendedCourseCard({
+    Key? key,
+    required this.course,
+    required this.onTap,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final accent = const Color(0xFF2E7D32);
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('직접 입력'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
+    final theme = Theme.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 220,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              theme.colorScheme.primary.withOpacity(0.85),
+              theme.colorScheme.primary.withOpacity(0.55),
+            ],
+          ),
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+              color: Colors.black.withOpacity(0.15),
+            ),
+          ],
+        ),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextField(
-              controller: _club,
-              decoration: const InputDecoration(
-                labelText: '골프장 이름(클럽)',
+            Text(
+              course.clubName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: _course,
-              decoration: const InputDecoration(
-                labelText: '코스 이름',
+            const SizedBox(height: 4),
+            Text(
+              course.courseName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withOpacity(0.9),
               ),
             ),
             const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _submit,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: accent,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22),
+            Row(
+              children: [
+                Chip(
+                  label: Text(
+                    'PAR ${course.totalPar}',
+                    style: const TextStyle(color: Colors.white),
                   ),
+                  backgroundColor: Colors.white.withOpacity(0.15),
+                  padding: EdgeInsets.zero,
+                  visualDensity: VisualDensity.compact,
                 ),
-                child: const Text(
-                  '확인',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                const SizedBox(width: 6),
+                if (course.country.isNotEmpty)
+                  Chip(
+                    label: Text(
+                      course.country,
+                      style: const TextStyle(color: Colors.white),
+                    ),
+                    backgroundColor: Colors.white.withOpacity(0.15),
+                    padding: EdgeInsets.zero,
+                    visualDensity: VisualDensity.compact,
                   ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 검색 결과 카드
+class _CourseResultCard extends StatelessWidget {
+  final GolfCourse course;
+  final VoidCallback onTap;
+
+  const _CourseResultCard({
+    Key? key,
+    required this.course,
+    required this.onTap,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: onTap,
+      child: Ink(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          color: theme.cardColor,
+          boxShadow: [
+            BoxShadow(
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+              color: Colors.black.withOpacity(0.06),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            // 왼쪽 아이콘/원
+            Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [
+                    theme.colorScheme.primary.withOpacity(0.9),
+                    theme.colorScheme.primary.withOpacity(0.6),
+                  ],
                 ),
               ),
+              child: const Icon(
+                Icons.golf_course,
+                color: Colors.white,
+              ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(width: 12),
+            // 가운데 텍스트
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    course.clubName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    course.courseName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                          color: theme.textTheme.bodySmall?.color
+                              ?.withOpacity(0.75),
+                        ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'PAR ${course.totalPar} • OUT ${course.frontNinePar} / IN ${course.backNinePar}',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            // 오른쪽 국가 / 화살표
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                if (course.country.isNotEmpty)
+                  Text(
+                    course.country,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                const SizedBox(height: 8),
+                const Icon(Icons.chevron_right),
+              ],
+            ),
           ],
         ),
       ),

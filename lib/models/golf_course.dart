@@ -29,70 +29,54 @@ class GolfCourse {
   /// 전체 파 합계
   int get totalPar => pars.fold(0, (a, b) => a + b);
 
+  /// 18홀 여부
+  bool get isEighteenHoles => pars.length == 18;
+
+  /// 전반 파 합계 (데이터가 모자라면 있는 만큼만 계산)
+  int get frontNinePar =>
+      pars.take(9).fold(0, (a, b) => a + b);
+
+  /// 후반 파 합계 (데이터가 모자라면 있는 만큼만 계산)
+  int get backNinePar =>
+      pars.skip(9).take(9).fold(0, (a, b) => a + b);
+
+  /// 화면에 보여줄 대표 이름
+  String get displayName => '$clubName / $courseName';
+
   /// JSON으로 저장 (유저가 직접 추가한 코스를 저장할 때 사용)
   Map<String, dynamic> toJson() => {
         'clubName': clubName,
         'courseName': courseName,
+        'pars': pars,
         'country': country,
         'lat': lat,
         'lon': lon,
-        'pars': pars,
       };
 
-  /// JSON에서 읽어오기
-  ///
-  /// - 우리가 만든 courses_new.json 은
-  ///   { "club": "...", "course": "...", "country": "...", "pars": [4,4,...] }
-  ///   이런 형식이야.
-  /// - 예전 샘플 JSON(courses_sample.json)은
-  ///   { "clubName": "...", "courseName": "...", "pars": [...] } 식이었지.
-  /// 그래서 둘 다 지원하도록 파싱해놨어.
+  /// JSON에서 로드 (커스텀 코스를 다시 불러올 때 사용)
   factory GolfCourse.fromJson(Map<String, dynamic> json) {
-    // club / clubName 둘 다 지원
-    final club = (json['clubName'] ?? json['club'] ?? '') as String;
-    final course = (json['courseName'] ?? json['course'] ?? '') as String;
-    final country = (json['country'] ?? '') as String;
+    final parsDynamic = json['pars'];
+    List<int> parsedPars = [];
 
-    List<int> pars;
-
-    // 1) pars 배열이 이미 있으면 그대로 사용
-    if (json['pars'] != null) {
-      final raw = json['pars'] as List<dynamic>;
-      pars = raw.map((e) {
-        if (e is int) return e;
-        return int.parse(e.toString());
-      }).toList();
-    } else {
-      // 2) pars가 없으면 parFront + parBack 을 합쳐서 만든다
-      List<int> parseList(dynamic v) {
-        if (v == null) return [];
-        if (v is List) {
-          return v.map((e) => int.parse(e.toString())).toList();
-        }
-        final s = v.toString().trim();
-        if (s.isEmpty) return [];
-        return s.split(',').map((e) => int.parse(e.trim())).toList();
-      }
-
-      final front = parseList(json['parFront']);
-      final back = parseList(json['parBack']);
-      pars = [...front, ...back];
-    }
-
-    double? parseDouble(dynamic v) {
-      if (v == null) return null;
-      final s = v.toString().trim();
-      if (s.isEmpty) return null;
-      return double.tryParse(s);
+    if (parsDynamic is String) {
+      // "4,4,3,4,..." 형식일 때
+      parsedPars = parsDynamic
+          .split(',')
+          .map((e) => int.tryParse(e.trim()) ?? 0)
+          .toList();
+    } else if (parsDynamic is List) {
+      parsedPars = parsDynamic
+          .map((e) => int.tryParse(e.toString()) ?? 0)
+          .toList();
     }
 
     return GolfCourse(
-      clubName: club,
-      courseName: course,
-      country: country,
-      lat: parseDouble(json['lat']),
-      lon: parseDouble(json['lon']),
-      pars: pars,
+      clubName: json['clubName'] ?? '',
+      courseName: json['courseName'] ?? '',
+      pars: parsedPars,
+      country: json['country'] ?? '',
+      lat: (json['lat'] as num?)?.toDouble(),
+      lon: (json['lon'] as num?)?.toDouble(),
     );
   }
 }

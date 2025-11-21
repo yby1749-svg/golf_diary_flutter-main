@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_lang.dart';
 
+/// 앱 전체에서 사용하는 설정 (현재는 언어만)
 class AppSettings extends ChangeNotifier {
   static const _keyLang = 'app_lang';
 
@@ -16,9 +17,7 @@ class AppSettings extends ChangeNotifier {
   }
 
   AppLang get lang => _lang;
-
   Locale get locale => _lang.locale;
-
   bool get isLoaded => _loaded;
 
   Future<void> _load() async {
@@ -31,6 +30,7 @@ class AppSettings extends ChangeNotifier {
 
   Future<void> setLanguage(AppLang lang) async {
     if (_lang == lang) return;
+
     _lang = lang;
     notifyListeners();
 
