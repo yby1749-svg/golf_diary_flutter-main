@@ -5,6 +5,98 @@ import '../services/localizer.dart';
 class GameScreen extends StatelessWidget {
   const GameScreen({super.key});
 
+  Widget _buildCloud(double scale, {double opacity = 0.65}) {
+    // 이미지 스타일 구름 - 부드러운 그림자와 함께
+    return Transform.scale(
+      scale: scale,
+      child: Container(
+        width: 140,
+        height: 70,
+        child: Stack(
+          children: [
+            // 그림자 레이어
+            Positioned(
+              left: 5,
+              top: 25,
+              child: Container(
+                width: 45,
+                height: 45,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFD8EEF4).withOpacity(opacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 25,
+              top: 12,
+              child: Container(
+                width: 55,
+                height: 55,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFE0F0F5).withOpacity(opacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 60,
+              top: 8,
+              child: Container(
+                width: 50,
+                height: 50,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFE5F2F7).withOpacity(opacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Positioned(
+              left: 90,
+              top: 20,
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFFD8EEF4).withOpacity(opacity),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.white.withOpacity(0.3),
+                      blurRadius: 15,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -13,40 +105,99 @@ class GameScreen extends StatelessWidget {
         backgroundColor: const Color(0xFF2E7D32),
         foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(24.0),
-        child: Column(
-          children: [
-            const SizedBox(height: 40),
-            // 오너 뽑기 카드
-            _GameCard(
-              imagePath: 'assets/icon/compass_icon.png',
-              title: L10n.tr('game.ownerPick'),
-              description: L10n.tr('game.ownerPickDesc'),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const OwnerPickScreen(),
-                  ),
-                );
-              },
+      body: Stack(
+        children: [
+          // 배경 (하늘 그라데이션 + 구름 + 이미지)
+          Positioned.fill(
+            child: Container(
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    Color(0xFF7DCCEC), // 이미지와 매칭되는 하늘색
+                    Color(0xFF7DCCEC),
+                    Color(0xFF7DCCEC),
+                  ],
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            // 팀 뽑기 카드
-            _GameCard(
-              imagePath: 'assets/icon/chopstick_icon.png',
-              title: L10n.tr('game.teamPick'),
-              description: L10n.tr('game.teamPickDesc'),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => const TeamPickScreen(),
-                  ),
-                );
-              },
+          ),
+          // 상단 구름들
+          Positioned(
+            top: 180,
+            left: -20,
+            child: _buildCloud(1.3),
+          ),
+          Positioned(
+            top: 240,
+            right: -30,
+            child: _buildCloud(1.6),
+          ),
+          Positioned(
+            top: 350,
+            left: 40,
+            child: _buildCloud(1.0),
+          ),
+          // 이미지
+          Positioned(
+            left: 0,
+            right: 0,
+            bottom: 0,
+            child: Image.asset(
+              'assets/images/game_background.png',
+              fit: BoxFit.fitWidth,
+              width: double.infinity,
             ),
-          ],
-        ),
+          ),
+          // 이미지 위에 오버레이 구름 (반만 보이게)
+          Positioned(
+            bottom: 320,
+            left: -40,
+            child: _buildCloud(1.8, opacity: 0.7),
+          ),
+          Positioned(
+            bottom: 280,
+            right: -50,
+            child: _buildCloud(2.0, opacity: 0.6),
+          ),
+          // 내용
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              children: [
+                const SizedBox(height: 40),
+                // 오너 뽑기 카드
+                _GameCard(
+                  imagePath: 'assets/icon/compass_icon.png',
+                  title: L10n.tr('game.ownerPick'),
+                  description: L10n.tr('game.ownerPickDesc'),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const OwnerPickScreen(),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 20),
+                // 팀 뽑기 카드
+                _GameCard(
+                  imagePath: 'assets/icon/chopstick_icon.png',
+                  title: L10n.tr('game.teamPick'),
+                  description: L10n.tr('game.teamPickDesc'),
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const TeamPickScreen(),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

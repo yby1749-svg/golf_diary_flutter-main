@@ -9,6 +9,7 @@ import 'package:provider/provider.dart';
 import '../models/recent_rounds_store.dart';
 import '../services/localizer.dart';
 import 'round_detail_screen.dart';
+import 'score_trend_chart.dart';
 
 class RecentRoundsScreen extends StatelessWidget {
   const RecentRoundsScreen({super.key});
@@ -70,9 +71,14 @@ class RecentRoundsScreen extends StatelessWidget {
               ),
             )
           : ListView.builder(
-              itemCount: store.rounds.length,
+              itemCount: store.rounds.length + 1, // +1 for chart
               itemBuilder: (context, index) {
-                final r = store.rounds[index];
+                // 첫 번째 아이템은 스코어 추세 차트
+                if (index == 0) {
+                  return ScoreTrendChart(rounds: store.rounds);
+                }
+
+                final r = store.rounds[index - 1]; // -1 because of chart
 
                 return GestureDetector(
                   onTap: () {

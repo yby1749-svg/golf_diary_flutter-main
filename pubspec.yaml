@@ -1,6 +1,7 @@
 name: golf_diary_flutter
 description: A Golf Diary app with multi-language support
 publish_to: "none"
+version: 1.1.0+2
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -33,6 +34,7 @@ flutter:
     - assets/fonts/GolfDiarySans.ttf
     - assets/fonts/NotoSansSC-Regular.otf
     - assets/images/golf_background.png
+    - assets/images/game_background.png
     - assets/icon/chopstick_icon.png
     - assets/icon/compass_icon.png
     - assets/courses_new.json

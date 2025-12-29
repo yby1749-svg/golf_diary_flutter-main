@@ -103,9 +103,9 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
-                // ⬆ GOLF DIARY 제목 애니메이션
+                // ⬆ GOLF DIARY 제목 애니메이션 (구름 효과)
                 Positioned(
-                  top: size.height * 0.12,
+                  top: size.height * 0.10,
                   left: 0,
                   right: 0,
                   child: Center(
@@ -115,14 +115,56 @@ class _HomeScreenState extends State<HomeScreen>
                         position: _slide,
                         child: ScaleTransition(
                           scale: _scale,
-                          child: const Text(
-                            'GOLF DIARY',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 40,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF2E7D32),
-                            ),
+                          child: Stack(
+                            children: [
+                              // 녹색 구름 아웃라인 (여러 겹)
+                              Text(
+                                'GOLF DIARY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 52,
+                                  fontWeight: FontWeight.w900,
+                                  foreground: Paint()
+                                    ..style = PaintingStyle.stroke
+                                    ..strokeWidth = 12
+                                    ..color = const Color(0xFF2E7D32).withOpacity(0.3),
+                                ),
+                              ),
+                              Text(
+                                'GOLF DIARY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 52,
+                                  fontWeight: FontWeight.w900,
+                                  foreground: Paint()
+                                    ..style = PaintingStyle.stroke
+                                    ..strokeWidth = 8
+                                    ..color = const Color(0xFF2E7D32).withOpacity(0.5),
+                                ),
+                              ),
+                              Text(
+                                'GOLF DIARY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 52,
+                                  fontWeight: FontWeight.w900,
+                                  foreground: Paint()
+                                    ..style = PaintingStyle.stroke
+                                    ..strokeWidth = 4
+                                    ..color = const Color(0xFF2E7D32),
+                                ),
+                              ),
+                              // 메인 텍스트 (흰색)
+                              const Text(
+                                'GOLF DIARY',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 52,
+                                  fontWeight: FontWeight.w900,
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ),
