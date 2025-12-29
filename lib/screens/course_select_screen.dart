@@ -334,123 +334,116 @@ class _CourseSelectScreenState extends State<CourseSelectScreen> {
   Widget _buildSavedCourseCard(GolfCourse course, Color accent, int index, AppLang lang) {
     final initials = _buildInitials(course.clubName);
 
-    return Dismissible(
-      key: Key('${course.clubName}_${course.courseName}_$index'),
-      direction: DismissDirection.endToStart,
-      background: Container(
-        alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
+    return InkWell(
+      onTap: () => _startWithCourse(course),
+      borderRadius: BorderRadius.circular(20),
+      child: Ink(
         decoration: BoxDecoration(
-          color: Colors.red,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 6,
+              offset: const Offset(0, 3),
+            ),
+          ],
         ),
-        child: const Icon(Icons.delete, color: Colors.white),
-      ),
-      confirmDismiss: (direction) async {
-        return await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: Text(L10n.t('course.deleteTitle', lang)),
-            content: Text(L10n.t('course.deleteMessage', lang)),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: Text(L10n.t('common.cancel', lang)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                style: TextButton.styleFrom(foregroundColor: Colors.red),
-                child: Text(L10n.t('recent.clearButton', lang)),
-              ),
-            ],
-          ),
-        ) ?? false;
-      },
-      onDismissed: (direction) => _deleteCourse(index),
-      child: InkWell(
-        onTap: () => _startWithCourse(course),
-        borderRadius: BorderRadius.circular(20),
-        child: Ink(
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(20),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 6,
-                offset: const Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-            child: Row(
-              children: [
-                // 이니셜 원형
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: accent.withOpacity(0.12),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Center(
-                    child: Text(
-                      initials,
-                      style: TextStyle(
-                        color: accent,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          child: Row(
+            children: [
+              // 이니셜 원형
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: accent.withOpacity(0.12),
+                  shape: BoxShape.circle,
+                ),
+                child: Center(
+                  child: Text(
+                    initials,
+                    style: TextStyle(
+                      color: accent,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
                     ),
                   ),
                 ),
-                const SizedBox(width: 14),
-                // 텍스트
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        course.clubName,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
+              ),
+              const SizedBox(width: 14),
+              // 텍스트
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      course.clubName,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text(
+                          course.courseName,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            color: Colors.grey,
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        children: [
-                          Text(
-                            course.courseName,
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey,
-                            ),
+                        const Text(
+                          ' • ',
+                          style: TextStyle(fontSize: 13, color: Colors.grey),
+                        ),
+                        Text(
+                          'Par ${course.totalPar}',
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: accent,
+                            fontWeight: FontWeight.w500,
                           ),
-                          const Text(
-                            ' • ',
-                            style: TextStyle(fontSize: 13, color: Colors.grey),
-                          ),
-                          Text(
-                            'Par ${course.totalPar}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: accent,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
-                const Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey,
-                ),
-              ],
-            ),
+              ),
+              // 휴지통 아이콘
+              IconButton(
+                icon: const Icon(Icons.delete_outline, color: Colors.red),
+                onPressed: () async {
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (context) => AlertDialog(
+                      title: Text(L10n.t('course.deleteTitle', lang)),
+                      content: Text(L10n.t('course.deleteMessage', lang)),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, false),
+                          child: Text(L10n.t('common.cancel', lang)),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(context, true),
+                          style: TextButton.styleFrom(foregroundColor: Colors.red),
+                          child: Text(L10n.t('recent.clearButton', lang)),
+                        ),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true) {
+                    _deleteCourse(index);
+                  }
+                },
+              ),
+              const Icon(
+                Icons.chevron_right,
+                color: Colors.grey,
+              ),
+            ],
           ),
         ),
       ),
@@ -495,10 +488,7 @@ class _CourseSelectScreenState extends State<CourseSelectScreen> {
       pars: (res['pars'] as List<dynamic>).cast<int>(),
     );
 
-    // 코스 저장
-    await _saveCourse(course);
-
-    // 18홀 골프장으로 만들어서 바로 스코어 입력 화면으로 이동
+    // 코스는 저장하지 않고, ScoreEntryScreen에서 저장 완료 후 저장
     final holes = List<HoleResult>.generate(
       18,
       (index) => HoleResult(
@@ -514,6 +504,7 @@ class _CourseSelectScreenState extends State<CourseSelectScreen> {
           clubName: course.clubName,
           courseName: course.courseName,
           holes: holes,
+          saveAsNewCourse: true, // 저장 완료 후 실제 파 값으로 코스 저장
         ),
       ),
     );

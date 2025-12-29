@@ -7,15 +7,17 @@
 // - 다국어(Localizer) 대응
 
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/app_lang.dart';
 import '../models/hole_result.dart';
 import '../models/round.dart';
 import '../models/recent_rounds_store.dart';
-import '../models/golf_course.dart'; // 🔹 GolfCourse 추가
+import '../models/golf_course.dart';
 import '../services/localizer.dart';
 import '../services/photo_helper.dart';
 import 'recent_rounds_screen.dart';
@@ -32,6 +34,9 @@ class ScoreEntryScreen extends StatefulWidget {
   /// 저장 콜백 (선택 사항)
   final void Function(List<int> strokes, List<int> pars)? onSave;
 
+  /// 새로 입력한 코스 저장 여부
+  final bool saveAsNewCourse;
+
   const ScoreEntryScreen({
     super.key,
     this.holes,
@@ -39,6 +44,7 @@ class ScoreEntryScreen extends StatefulWidget {
     this.courseName,
     this.onSave,
     this.selectedCourse,
+    this.saveAsNewCourse = false,
   });
 
   @override
@@ -546,14 +552,48 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
 
     await context.read<RecentRoundsStore>().add(round);
 
+    // 6) 새 코스 저장 (직접 입력한 경우)
+    if (widget.saveAsNewCourse) {
+      await _saveNewCourse();
+    }
+
     if (!mounted) return;
 
-    // 6) 최근 라운드 화면으로 이동
+    // 7) 최근 라운드 화면으로 이동
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (_) => const RecentRoundsScreen(),
       ),
     );
+  }
+
+  /// 새 코스를 저장 (실제 입력한 파 값으로)
+  Future<void> _saveNewCourse() async {
+    final clubName = widget.clubName ?? widget.selectedCourse?.clubName ?? '';
+    final courseName = widget.courseName ?? widget.selectedCourse?.courseName ?? '';
+
+    if (clubName.isEmpty || courseName.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final coursesJson = prefs.getStringList('saved_courses') ?? [];
+
+    // 중복 체크
+    final exists = coursesJson.any((json) {
+      final map = jsonDecode(json) as Map<String, dynamic>;
+      return map['clubName'] == clubName && map['courseName'] == courseName;
+    });
+
+    if (exists) return;
+
+    // 실제 입력한 파 값으로 저장
+    final newCourse = jsonEncode({
+      'clubName': clubName,
+      'courseName': courseName,
+      'pars': pars,
+    });
+
+    coursesJson.add(newCourse);
+    await prefs.setStringList('saved_courses', coursesJson);
   }
 }
