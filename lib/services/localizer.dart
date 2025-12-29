@@ -75,6 +75,30 @@ class L10n {
       'ja': '手動入力',
       'zh': '手动输入',
     },
+    'course.manualInputDesc': {
+      'ko': '골프장 이름과 코스를 직접 입력하세요',
+      'en': 'Enter club name and course manually',
+      'ja': 'ゴルフ場名とコースを直接入力',
+      'zh': '手动输入球场名称和球道',
+    },
+    'course.savedCourses': {
+      'ko': '저장된 코스',
+      'en': 'Saved Courses',
+      'ja': '保存済みコース',
+      'zh': '已保存球场',
+    },
+    'course.deleteTitle': {
+      'ko': '코스 삭제',
+      'en': 'Delete Course',
+      'ja': 'コース削除',
+      'zh': '删除球场',
+    },
+    'course.deleteMessage': {
+      'ko': '이 코스를 삭제하시겠습니까?',
+      'en': 'Delete this course?',
+      'ja': 'このコースを削除しますか？',
+      'zh': '确定删除此球场吗？',
+    },
 
     'manual.title': {
       'ko': '직접 입력',
@@ -446,6 +470,92 @@ class L10n {
       'en': 'Game Complete!',
       'ja': 'ゲーム完了！',
       'zh': '游戏完成！',
+    },
+
+    // ---------- 튜토리얼 ----------
+    'tutorial.step1Title': {
+      'ko': '직접 입력',
+      'en': 'Manual Input',
+      'ja': '手動入力',
+      'zh': '手动输入',
+    },
+    'tutorial.step1Desc': {
+      'ko': '직접 입력 버튼을 눌러주세요',
+      'en': 'Tap the Manual Input button',
+      'ja': '手動入力ボタンをタップ',
+      'zh': '点击手动输入按钮',
+    },
+    'tutorial.step2Title': {
+      'ko': '골프장 / 코스 입력',
+      'en': 'Enter Club / Course',
+      'ja': 'ゴルフ場 / コース入力',
+      'zh': '输入球场 / 球道',
+    },
+    'tutorial.step2Desc': {
+      'ko': '골프장 이름과 코스를 입력하고\nOK 버튼을 눌러주세요',
+      'en': 'Enter club name and course,\nthen tap OK',
+      'ja': 'ゴルフ場名とコースを入力し\nOKをタップ',
+      'zh': '输入球场名称和球道\n然后点击确定',
+    },
+    'tutorial.step3Title': {
+      'ko': '파 선택',
+      'en': 'Select Par',
+      'ja': 'パー選択',
+      'zh': '选择标准杆',
+    },
+    'tutorial.step3Desc': {
+      'ko': '각 홀의 파(Par)를 설정하세요\n파란색 버튼을 눌러 변경할 수 있어요',
+      'en': 'Set the Par for each hole\nTap the blue button to change',
+      'ja': '各ホールのパーを設定\n青いボタンで変更できます',
+      'zh': '设置每洞的标准杆\n点击蓝色按钮可更改',
+    },
+    'tutorial.step4Title': {
+      'ko': '스코어 입력',
+      'en': 'Enter Score',
+      'ja': 'スコア入力',
+      'zh': '输入成绩',
+    },
+    'tutorial.step4Desc': {
+      'ko': '- / + 버튼으로\n타수를 입력하세요',
+      'en': 'Use - / + buttons\nto enter strokes',
+      'ja': '- / + ボタンで\n打数を入力',
+      'zh': '使用 - / + 按钮\n输入杆数',
+    },
+    'tutorial.step5Title': {
+      'ko': '잠금',
+      'en': 'Lock',
+      'ja': 'ロック',
+      'zh': '锁定',
+    },
+    'tutorial.step5Desc': {
+      'ko': '잠금 버튼을 눌러\n스코어를 확정하세요',
+      'en': 'Tap the lock button\nto confirm score',
+      'ja': 'ロックボタンで\nスコアを確定',
+      'zh': '点击锁定按钮\n确认成绩',
+    },
+    'tutorial.skip': {
+      'ko': '건너뛰기',
+      'en': 'Skip',
+      'ja': 'スキップ',
+      'zh': '跳过',
+    },
+    'tutorial.prev': {
+      'ko': '이전',
+      'en': 'Prev',
+      'ja': '前へ',
+      'zh': '上一步',
+    },
+    'tutorial.next': {
+      'ko': '다음',
+      'en': 'Next',
+      'ja': '次へ',
+      'zh': '下一步',
+    },
+    'tutorial.done': {
+      'ko': '완료',
+      'en': 'Done',
+      'ja': '完了',
+      'zh': '完成',
     },
   };
 
