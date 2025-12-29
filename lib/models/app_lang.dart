@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 
+/// 지원 언어 코드
 enum AppLang { ko, en, ja, zh }
 
 extension AppLangX on AppLang {

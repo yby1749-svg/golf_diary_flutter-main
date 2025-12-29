@@ -5,11 +5,27 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:provider/provider.dart';
 
 import 'models/app_settings.dart';
+import 'models/recent_rounds_store.dart';
 import 'screens/home_screen.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const GolfDiaryApp());
+  runApp(const GolfDiaryRoot());
+}
+
+class GolfDiaryRoot extends StatelessWidget {
+  const GolfDiaryRoot({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => AppSettings()),
+        ChangeNotifierProvider(create: (_) => RecentRoundsStore()),
+      ],
+      child: const GolfDiaryApp(),
+    );
+  }
 }
 
 class GolfDiaryApp extends StatelessWidget {
@@ -17,45 +33,33 @@ class GolfDiaryApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(
-      providers: [
-        ChangeNotifierProvider(create: (_) => AppSettings()),
-
-      ],
-      child: Consumer<AppSettings>(
-        builder: (context, settings, _) {
-          // lang 값이 바뀌면 전체 앱을 다시 그리도록 의도적으로 읽어줌
-          final _ = settings.lang;
-
-          return MaterialApp(
-            debugShowCheckedModeBanner: false,
-            title: 'Golf Diary',
-            theme: ThemeData(
-              colorScheme: ColorScheme.fromSeed(
-                seedColor: const Color(0xFF2E7D32),
-                brightness: Brightness.light,
-              ),
-              useMaterial3: true,
+    return Consumer<AppSettings>(
+      builder: (context, settings, _) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'Golf Diary',
+          theme: ThemeData(
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: const Color(0xFF2E7D32),
+              brightness: Brightness.light,
             ),
-
-            // ✅ 머티리얼 기본 문자열(뒤로가기 버튼 등) 로컬라이제이션
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
-              GlobalWidgetsLocalizations.delegate,
-              GlobalCupertinoLocalizations.delegate,
-            ],
-            supportedLocales: const [
-              Locale('ko'),
-              Locale('en'),
-              Locale('ja'),
-              Locale('zh'),
-            ],
-
-            // ✅ 앱 첫 화면
-            home: const HomeScreen(),
-          );
-        },
-      ),
+            useMaterial3: true,
+          ),
+          locale: settings.locale,
+          localizationsDelegates: const [
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: const [
+            Locale('ko'),
+            Locale('en'),
+            Locale('ja'),
+            Locale('zh'),
+          ],
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }
