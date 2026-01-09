@@ -8,20 +8,27 @@ import 'models/app_settings.dart';
 import 'models/recent_rounds_store.dart';
 import 'screens/home_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const GolfDiaryRoot());
+
+  // 저장된 라운드 데이터 미리 로드
+  final roundsStore = RecentRoundsStore();
+  await roundsStore.load();
+
+  runApp(GolfDiaryRoot(roundsStore: roundsStore));
 }
 
 class GolfDiaryRoot extends StatelessWidget {
-  const GolfDiaryRoot({super.key});
+  final RecentRoundsStore roundsStore;
+
+  const GolfDiaryRoot({super.key, required this.roundsStore});
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppSettings()),
-        ChangeNotifierProvider(create: (_) => RecentRoundsStore()),
+        ChangeNotifierProvider.value(value: roundsStore),
       ],
       child: const GolfDiaryApp(),
     );

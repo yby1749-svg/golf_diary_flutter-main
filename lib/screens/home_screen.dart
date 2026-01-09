@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../models/golf_course.dart';
 import '../services/localizer.dart';
 import 'course_select_screen.dart';
 import 'recent_rounds_screen.dart';
 import 'language_settings_screen.dart';
 import 'game_screen.dart';
+import 'score_entry_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -20,9 +22,12 @@ class _HomeScreenState extends State<HomeScreen>
   late Animation<Offset> _slide;
   late Animation<double> _fade;
 
+  Map<String, dynamic>? _draft; // 진행 중인 라운드
+
   @override
   void initState() {
     super.initState();
+    _checkDraft();
 
     _controller = AnimationController(
       vsync: this,
@@ -63,6 +68,35 @@ class _HomeScreenState extends State<HomeScreen>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  Future<void> _checkDraft() async {
+    final draft = await ScoreEntryScreen.getDraft();
+    if (mounted) {
+      setState(() {
+        _draft = draft;
+      });
+    }
+  }
+
+  void _continueDraft() {
+    if (_draft == null) return;
+
+    final clubName = _draft!['clubName'] as String? ?? '';
+    final courseName = _draft!['courseName'] as String? ?? '';
+    final pars = (_draft!['pars'] as List).cast<int>();
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ScoreEntryScreen(
+          selectedCourse: GolfCourse(
+            clubName: clubName,
+            courseName: courseName,
+            pars: pars,
+          ),
+        ),
+      ),
+    ).then((_) => _checkDraft()); // 돌아오면 다시 체크
   }
 
   @override
@@ -172,6 +206,20 @@ class _HomeScreenState extends State<HomeScreen>
                   ),
                 ),
 
+                // ⬇ 계속하기 버튼 (진행 중인 라운드가 있을 때만 표시)
+                if (_draft != null)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 240,
+                    child: Center(
+                      child: _ContinueButton(
+                        clubName: _draft!['clubName'] as String? ?? '',
+                        onPressed: _continueDraft,
+                      ),
+                    ),
+                  ),
+
                 // ⬇ 기록하기 버튼
                 Positioned(
                   left: 0,
@@ -185,7 +233,7 @@ class _HomeScreenState extends State<HomeScreen>
                           MaterialPageRoute(
                             builder: (_) => const CourseSelectScreen(),
                           ),
-                        );
+                        ).then((_) => _checkDraft()); // 돌아오면 다시 체크
                       },
                     ),
                   ),
@@ -306,6 +354,56 @@ class _MainOutlinedButton extends StatelessWidget {
             fontSize: 18,
             fontWeight: FontWeight.w600,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ContinueButton extends StatelessWidget {
+  final String clubName;
+  final VoidCallback onPressed;
+
+  const _ContinueButton({
+    required this.clubName,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 260,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFFFB74D), // 주황색
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+        ),
+        onPressed: onPressed,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              L10n.tr('home.continue'),
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (clubName.isNotEmpty)
+              Text(
+                clubName,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w400,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+          ],
         ),
       ),
     );

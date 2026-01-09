@@ -55,6 +55,12 @@ class L10n {
       'ja': '最近ラウンド',
       'zh': '最近轮次',
     },
+    'home.continue': {
+      'ko': '이어서 기록하기',
+      'en': 'Continue Round',
+      'ja': 'ラウンドを続ける',
+      'zh': '继续记录',
+    },
 
     // ---------- 코스 검색 / 직접 입력 ----------
     'course.searchTitle': {
@@ -170,6 +176,24 @@ class L10n {
       'en': 'Unlock',
       'ja': 'ロック解除',
       'zh': '解锁',
+    },
+    'score.lockAllToSave': {
+      'ko': '모든 홀을 잠금하면 저장할 수 있습니다',
+      'en': 'Lock all holes to save',
+      'ja': '全てのホールをロックすると保存できます',
+      'zh': '锁定所有洞后可保存',
+    },
+    'score.subtotalPar': {
+      'ko': 'Par',
+      'en': 'Par',
+      'ja': 'パー',
+      'zh': '标准杆',
+    },
+    'score.subtotalScore': {
+      'ko': '타수',
+      'en': 'Score',
+      'ja': '打数',
+      'zh': '杆数',
     },
 
     // ---------- 최근 라운드 리스트 ----------

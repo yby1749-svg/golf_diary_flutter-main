@@ -23,6 +23,8 @@ import '../services/photo_helper.dart';
 import 'recent_rounds_screen.dart';
 
 class ScoreEntryScreen extends StatefulWidget {
+  static const _draftKey = 'draft_round';
+
   /// 예전 방식: 외부에서 만들어진 홀 리스트 + 코스 이름 전달
   final String? clubName;
   final String? courseName;
@@ -47,18 +49,46 @@ class ScoreEntryScreen extends StatefulWidget {
     this.saveAsNewCourse = false,
   });
 
+  /// 진행 중인 라운드가 있는지 확인
+  static Future<Map<String, dynamic>?> getDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draftJson = prefs.getString(_draftKey);
+    if (draftJson == null) return null;
+    try {
+      return jsonDecode(draftJson) as Map<String, dynamic>;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// 진행 중인 라운드 삭제
+  static Future<void> clearDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_draftKey);
+  }
+
   @override
   State<ScoreEntryScreen> createState() => _ScoreEntryScreenState();
 }
 
-class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
+class _ScoreEntryScreenState extends State<ScoreEntryScreen>
+    with WidgetsBindingObserver {
+  static const _draftKey = 'draft_round';
+
   late List<int> strokes;
   late List<int> pars;
   late List<bool> _locked; // 홀 잠금 여부
 
+  String _clubName = '';
+  String _courseName = '';
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    _clubName = widget.clubName ?? widget.selectedCourse?.clubName ?? '';
+    _courseName = widget.courseName ?? widget.selectedCourse?.courseName ?? '';
 
     // 1) 우선 순위:
     //   - widget.holes 가 있으면 그대로 사용 (예전 방식 호환)
@@ -78,6 +108,70 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
     }
 
     _locked = List<bool>.filled(pars.length, false);
+
+    // 저장된 진행 중인 라운드가 있으면 복원
+    _loadDraft();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // 앱이 백그라운드로 가거나 종료될 때 자동 저장
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.inactive) {
+      _saveDraft();
+    }
+  }
+
+  /// 진행 중인 라운드를 SharedPreferences에 저장
+  Future<void> _saveDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draft = {
+      'clubName': _clubName,
+      'courseName': _courseName,
+      'pars': pars,
+      'strokes': strokes,
+      'locked': _locked.map((e) => e ? 1 : 0).toList(),
+      'savedAt': DateTime.now().toIso8601String(),
+    };
+    await prefs.setString(_draftKey, jsonEncode(draft));
+  }
+
+  /// 저장된 진행 중인 라운드 복원
+  Future<void> _loadDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draftJson = prefs.getString(_draftKey);
+    if (draftJson == null) return;
+
+    try {
+      final draft = jsonDecode(draftJson) as Map<String, dynamic>;
+      final savedClub = draft['clubName'] as String? ?? '';
+      final savedCourse = draft['courseName'] as String? ?? '';
+
+      // 같은 코스의 진행 중인 라운드인 경우에만 복원
+      if (savedClub == _clubName && savedCourse == _courseName) {
+        final savedPars = (draft['pars'] as List).cast<int>();
+        final savedStrokes = (draft['strokes'] as List).cast<int>();
+        final savedLocked = (draft['locked'] as List)
+            .map((e) => e == 1)
+            .toList();
+
+        if (savedPars.length == pars.length) {
+          setState(() {
+            pars = List<int>.from(savedPars);
+            strokes = List<int>.from(savedStrokes);
+            _locked = List<bool>.from(savedLocked);
+          });
+        }
+      }
+    } catch (_) {
+      // 복원 실패 시 무시
+    }
   }
 
   @override
@@ -97,10 +191,15 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
     // "진행"은 잠금된 홀 개수 기준
     final completed = _locked.where((e) => e).length;
     final total = strokes.length;
+    final allLocked = completed == total; // 모든 홀이 잠금되었는지
 
     final totalPar = pars.fold(0, (a, b) => a + b);
     final totalScore = strokes.fold(0, (a, b) => a + b);
     final diff = totalScore - totalPar;
+
+    // 전반/후반 계산 (9홀 기준)
+    final frontEnd = total >= 9 ? 9 : total;
+    final hasBack = total > 9;
 
     return Scaffold(
       backgroundColor: const Color(0xFFEFF8E6),
@@ -120,37 +219,226 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: strokes.length,
-              itemBuilder: (_, i) => _buildHoleRow(theme, lang, i),
+            child: ListView(
+              children: [
+                // 전반 헤더
+                _buildSectionHeader(
+                  theme,
+                  lang,
+                  L10n.t('detail.frontLabel', lang),
+                  0,
+                  frontEnd,
+                ),
+                // 전반 홀들
+                for (int i = 0; i < frontEnd; i++)
+                  _buildHoleRow(theme, lang, i),
+                // 전반 소계
+                _buildSubtotal(theme, lang, 0, frontEnd),
+
+                // 후반이 있으면
+                if (hasBack) ...[
+                  const SizedBox(height: 16),
+                  // 후반 헤더
+                  _buildSectionHeader(
+                    theme,
+                    lang,
+                    L10n.t('detail.backLabel', lang),
+                    frontEnd,
+                    total,
+                  ),
+                  // 후반 홀들
+                  for (int i = frontEnd; i < total; i++)
+                    _buildHoleRow(theme, lang, i),
+                  // 후반 소계
+                  _buildSubtotal(theme, lang, frontEnd, total),
+                ],
+                const SizedBox(height: 16),
+              ],
             ),
           ),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            child: SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _onTapSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E7D32),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(22),
+          // 저장 버튼: 모든 홀이 잠금되었을 때만 표시
+          if (allLocked)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _onTapSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF2E7D32),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(22),
+                    ),
                   ),
-                ),
-                child: Text(
-                  L10n.t('score.save', lang),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  child: Text(
+                    L10n.t('score.save', lang),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ),
+            )
+          else
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+              child: Text(
+                L10n.t('score.lockAllToSave', lang),
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
             ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 전반/후반 섹션 헤더 ----------------
+
+  Widget _buildSectionHeader(
+    ThemeData theme,
+    AppLang lang,
+    String title,
+    int start,
+    int end,
+  ) {
+    final sectionLocked = _locked.sublist(start, end).where((e) => e).length;
+    final sectionTotal = end - start;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF2E7D32).withOpacity(0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0xFF2E7D32).withOpacity(0.3),
+        ),
+      ),
+      child: Row(
+        children: [
+          Text(
+            title,
+            style: theme.textTheme.titleMedium?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF2E7D32),
+            ),
+          ),
+          const Spacer(),
+          Text(
+            '$sectionLocked / $sectionTotal ${L10n.t('score.holeSuffix', lang)}',
+            style: TextStyle(
+              fontSize: 13,
+              color: sectionLocked == sectionTotal
+                  ? const Color(0xFF2E7D32)
+                  : Colors.grey[600],
+              fontWeight: sectionLocked == sectionTotal
+                  ? FontWeight.bold
+                  : FontWeight.normal,
+            ),
+          ),
+          if (sectionLocked == sectionTotal)
+            const Padding(
+              padding: EdgeInsets.only(left: 4),
+              child: Icon(
+                Icons.check_circle,
+                size: 18,
+                color: Color(0xFF2E7D32),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  // ---------------- 전반/후반 소계 ----------------
+
+  Widget _buildSubtotal(
+    ThemeData theme,
+    AppLang lang,
+    int start,
+    int end,
+  ) {
+    final sectionPars = pars.sublist(start, end);
+    final sectionStrokes = strokes.sublist(start, end);
+
+    final sectionPar = sectionPars.fold(0, (a, b) => a + b);
+    final sectionScore = sectionStrokes.fold(0, (a, b) => a + b);
+    final sectionDiff = sectionScore - sectionPar;
+
+    final diffText = sectionDiff == 0
+        ? 'E'
+        : (sectionDiff > 0 ? '+$sectionDiff' : '$sectionDiff');
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade300),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          _buildSubtotalItem(
+            L10n.t('score.subtotalPar', lang),
+            '$sectionPar',
+            Colors.grey[700]!,
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey.shade300,
+          ),
+          _buildSubtotalItem(
+            L10n.t('score.subtotalScore', lang),
+            '$sectionScore',
+            Colors.black,
+          ),
+          Container(
+            width: 1,
+            height: 30,
+            color: Colors.grey.shade300,
+          ),
+          _buildSubtotalItem(
+            'To Par',
+            diffText,
+            sectionDiff > 0
+                ? Colors.red
+                : (sectionDiff < 0 ? Colors.blue : Colors.grey[700]!),
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildSubtotalItem(String label, String value, Color valueColor) {
+    return Column(
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: Colors.grey[600],
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: valueColor,
+          ),
+        ),
+      ],
     );
   }
 
@@ -306,6 +594,7 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
               setState(() {
                 _cyclePar(index);
               });
+              _saveDraft(); // 자동 저장
             },
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 150),
@@ -364,6 +653,7 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
                   setState(() {
                     if (strokes[index] > 1) strokes[index]--;
                   });
+                  _saveDraft(); // 자동 저장
                 }
               : null,
           icon: const Icon(Icons.remove_circle_outline),
@@ -381,6 +671,7 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
                   setState(() {
                     strokes[index]++;
                   });
+                  _saveDraft(); // 자동 저장
                 }
               : null,
           icon: const Icon(Icons.add_circle_outline),
@@ -403,6 +694,7 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
           setState(() {
             _locked[index] = true;
           });
+          _saveDraft(); // 자동 저장
         } else {
           // 잠금 해제: 확인 팝업
           final result = await showDialog<bool>(
@@ -437,6 +729,7 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
             setState(() {
               _locked[index] = false;
             });
+            _saveDraft(); // 자동 저장
           }
         }
       },
@@ -552,14 +845,17 @@ class _ScoreEntryScreenState extends State<ScoreEntryScreen> {
 
     await context.read<RecentRoundsStore>().add(round);
 
-    // 6) 새 코스 저장 (직접 입력한 경우)
+    // 6) 진행 중인 라운드 draft 삭제
+    await ScoreEntryScreen.clearDraft();
+
+    // 7) 새 코스 저장 (직접 입력한 경우)
     if (widget.saveAsNewCourse) {
       await _saveNewCourse();
     }
 
     if (!mounted) return;
 
-    // 7) 최근 라운드 화면으로 이동
+    // 8) 최근 라운드 화면으로 이동
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(
